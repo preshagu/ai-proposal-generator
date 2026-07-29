@@ -1,0 +1,825 @@
+{
+  "name": "AI Proposal Generator (Form Trigger)",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "New Proposal Request",
+        "formDescription": "Fill in the client's details to generate a proposal, timeline, cost estimate and scope document.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Client Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Client Email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Contact Person",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Project Description",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Deliverables",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Budget Range",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Deadline",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Industry",
+              "requiredField": false
+            }
+          ]
+        },
+        "responseMode": "onReceived",
+        "options": {
+          "formSubmittedText": "Got it — your proposal is being generated and will land in your inbox shortly."
+        }
+      },
+      "id": "1a1a1a1a-0000-4000-8000-000000000000",
+      "name": "New Proposal Request",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -1820,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "n1",
+              "name": "clientName",
+              "type": "string",
+              "value": "={{ $json['Client Name'] }}"
+            },
+            {
+              "id": "n2",
+              "name": "clientEmail",
+              "type": "string",
+              "value": "={{ $json['Client Email'] }}"
+            },
+            {
+              "id": "n3",
+              "name": "contactPerson",
+              "type": "string",
+              "value": "={{ $json['Contact Person'] || $json['Client Name'] }}"
+            },
+            {
+              "id": "n4",
+              "name": "projectDescription",
+              "type": "string",
+              "value": "={{ $json['Project Description'] || '' }}"
+            },
+            {
+              "id": "n5",
+              "name": "deliverables",
+              "type": "string",
+              "value": "={{ $json['Deliverables'] || '' }}"
+            },
+            {
+              "id": "n6",
+              "name": "budgetRange",
+              "type": "string",
+              "value": "={{ $json['Budget Range'] || 'not specified' }}"
+            },
+            {
+              "id": "n7",
+              "name": "deadline",
+              "type": "string",
+              "value": "={{ $json['Deadline'] || 'flexible' }}"
+            },
+            {
+              "id": "n8",
+              "name": "industry",
+              "type": "string",
+              "value": "={{ $json['Industry'] || 'general' }}"
+            },
+            {
+              "id": "n9",
+              "name": "freelancerEmail",
+              "type": "string",
+              "value": "your-email@example.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1a1a1a1a-0002-4000-8000-000000000002",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst missing = [];\nif (!item.clientName || item.clientName.trim().length < 2) missing.push('Client Name');\nif (!item.projectDescription || item.projectDescription.trim().length < 10) missing.push('Project Description (needs more detail)');\nif (!item.deliverables || item.deliverables.trim().length < 5) missing.push('Deliverables');\n\nreturn [{ json: { ...item, inputValid: missing.length === 0, missingFields: missing.join(', ') } }];"
+      },
+      "id": "1a1a1a1a-0018-4000-8000-000000000018",
+      "name": "Validate Required Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1380,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "v1",
+              "leftValue": "={{ $json.inputValid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1a1a1a1a-0019-4000-8000-000000000019",
+      "name": "Check Required Fields",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Normalize Input').first().json.freelancerEmail }}",
+        "subject": "=Incomplete proposal request from {{ $json.clientName || 'a client' }}",
+        "message": "=A form submission came in without enough detail to generate a proposal.<br><br>Missing / too short: {{ $json.missingFields }}<br><br>Client name given: {{ $json.clientName }}<br>Client email given: {{ $json.clientEmail }}<br><br>Ask them for more detail and resubmit, or fill in the gaps yourself via the form.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "1a1a1a1a-0020-4000-8000-000000000020",
+      "name": "Alert - Incomplete Submission",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -940,
+        460
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-credential",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "1a1a1a1a-0021-4000-8000-000000000021",
+      "name": "Skipped (Incomplete Submission)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "businessName",
+              "type": "string",
+              "value": "Your Business Name"
+            },
+            {
+              "id": "b2",
+              "name": "tagline",
+              "type": "string",
+              "value": "AI Automation & Full-Stack Development"
+            },
+            {
+              "id": "b3",
+              "name": "brandColor",
+              "type": "string",
+              "value": "#0f172a"
+            },
+            {
+              "id": "r1",
+              "name": "rateCardText",
+              "type": "string",
+              "value": "Web Development: $35-55/hr | Automation/n8n workflow build: $400-1200 flat per workflow depending on complexity | AI Agent build (with integrations): $600-2000 flat | QA/Testing: $25-40/hr | Discovery/Strategy call: included free up to 30 min | Revisions: 2 rounds included, additional rounds $50/round. EDIT THIS NODE with your real rates — the AI will use these numbers, not invent its own."
+            }
+          ]
+        },
+        "options": {
+          "includeOtherFields": true
+        }
+      },
+      "id": "1a1a1a1a-0003-4000-8000-000000000003",
+      "name": "Business & Rate Card (Edit Me)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -940,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst systemPrompt = `You are a senior proposal writer for a freelance AI automation and full-stack development agency. You will be given client requirements and a rate card. Respond with ONLY a single valid JSON object, no markdown fences, no preamble, matching exactly this shape: {\"proposal\": {\"title\": string, \"summary\": string, \"approach\": string}, \"timeline\": [{\"phase\": string, \"description\": string, \"duration\": string}], \"costEstimate\": {\"lineItems\": [{\"item\": string, \"detail\": string, \"amount\": string}], \"total\": string, \"paymentTerms\": string}, \"scopeDocument\": {\"inScope\": [string], \"outOfScope\": [string], \"assumptions\": [string]}}. Base all pricing strictly on the provided rate card ranges, never invent numbers outside it. Keep language concise, confident, and human -- never generic or templated-sounding.`;\n\nconst userContent = `Client: ${item.clientName}\nContact: ${item.contactPerson}\nIndustry: ${item.industry}\nProject description: ${item.projectDescription}\nRequested deliverables: ${item.deliverables}\nBudget range given by client: ${item.budgetRange}\nDeadline: ${item.deadline}\n\nRate card to base pricing on:\n${item.rateCardText}\n\nGenerate the full proposal JSON now.`;\n\nconst requestBody = {\n  model: \"llama-3.3-70b-versatile\",\n  max_tokens: 3000,\n  response_format: { type: \"json_object\" },\n  messages: [\n    { role: \"system\", content: systemPrompt },\n    { role: \"user\", content: userContent }\n  ]\n};\n\nreturn [{ json: { ...item, requestBody } }];"
+      },
+      "id": "1a1a1a1a-0003-4000-8000-000000000099",
+      "name": "Build API Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {}
+      },
+      "id": "1a1a1a1a-0004-4000-8000-000000000004",
+      "name": "Generate Proposal Content (Groq)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -340,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "groq-api-credential",
+          "name": "Groq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.choices[0].message.content;\nlet cleaned = raw.trim();\nif (cleaned.startsWith('```')) {\n  cleaned = cleaned.replace(/^```json\\n?/, '').replace(/^```\\n?/, '').replace(/```$/, '').trim();\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  return [{ json: { valid: false, error: 'Failed to parse AI response as JSON', raw: cleaned } }];\n}\n\nconst required = ['proposal', 'timeline', 'costEstimate', 'scopeDocument'];\nconst missing = required.filter(k => !(k in parsed));\nif (missing.length) {\n  return [{ json: { valid: false, error: `Missing fields: ${missing.join(', ')}`, raw: cleaned } }];\n}\n\nreturn [{ json: { valid: true, ...parsed } }];"
+      },
+      "id": "1a1a1a1a-0005-4000-8000-000000000005",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1a1a1a1a-0006-4000-8000-000000000006",
+      "name": "Validate Output",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Normalize Input').first().json.freelancerEmail }}",
+        "subject": "=⚠️ Proposal generation failed for {{ $('Normalize Input').first().json.clientName }}",
+        "message": "=The AI Proposal Generator could not produce a valid proposal for {{ $('Normalize Input').first().json.clientName }}.<br><br>Error: {{ $json.error }}<br><br>Raw output (for debugging):<br><pre>{{ $json.raw }}</pre>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "1a1a1a1a-0007-4000-8000-000000000007",
+      "name": "Alert on Failure",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        460
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-credential",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "1a1a1a1a-0008-4000-8000-000000000008",
+      "name": "Failed - Check Alert Email",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        480,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const client = $('Normalize Input').first().json;\nconst business = $('Business & Rate Card (Edit Me)').first().json;\nconst data = $input.first().json;\n\nconst brand = business.brandColor || '#0f172a';\n\nconst timelineRows = data.timeline.map(t => `\n  <tr>\n    <td>${t.phase}</td>\n    <td>${t.description}</td>\n    <td>${t.duration}</td>\n  </tr>`).join('');\n\nconst costRows = data.costEstimate.lineItems.map(i => `\n  <tr>\n    <td>${i.item}</td>\n    <td>${i.detail}</td>\n    <td class=\"amt\">${i.amount}</td>\n  </tr>`).join('');\n\nconst inScope = data.scopeDocument.inScope.map(s => `<li>${s}</li>`).join('');\nconst outScope = data.scopeDocument.outOfScope.map(s => `<li>${s}</li>`).join('');\nconst assumptions = data.scopeDocument.assumptions.map(s => `<li>${s}</li>`).join('');\n\nconst today = new Date();\nconst dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });\nconst refCode = `${(client.clientName || 'CLT').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()}-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;\n\nconst html = `\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<style>\n  * { box-sizing: border-box; }\n  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1f2937; margin: 0; padding: 50px 55px; font-size: 13px; line-height: 1.6; }\n  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid ${brand}; padding-bottom: 16px; margin-bottom: 26px; }\n  .brand-name { font-size: 20px; font-weight: 700; color: ${brand}; margin: 0; }\n  .brand-tagline { font-size: 11px; color: #6b7280; margin-top: 3px; }\n  .doc-meta { text-align: right; font-size: 11px; color: #6b7280; line-height: 1.5; }\n  .doc-meta .doc-type { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: ${brand}; text-transform: uppercase; }\n  .prepared-for { margin-bottom: 26px; }\n  .prepared-for .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; }\n  .prepared-for .name { font-size: 16px; font-weight: 600; color: #111827; margin-top: 2px; }\n  h1.title { font-size: 21px; margin: 0 0 22px 0; color: #111827; }\n  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: ${brand}; margin-top: 28px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb; }\n  p { margin: 6px 0 0 0; }\n  table { width: 100%; border-collapse: collapse; margin-top: 8px; }\n  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }\n  th { background: #f8fafc; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; }\n  .amt { text-align: right; white-space: nowrap; }\n  .total-row td { font-weight: 700; border-top: 2px solid ${brand}; background: #f8fafc; }\n  ul { margin: 6px 0; padding-left: 20px; }\n  li { margin-bottom: 3px; }\n  .signature-block { margin-top: 42px; display: flex; gap: 60px; }\n  .sig-line { flex: 1; border-top: 1px solid #9ca3af; padding-top: 6px; font-size: 11px; color: #6b7280; }\n  .footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; text-align: center; }\n</style>\n</head>\n<body>\n  <div class=\"header\">\n    <div>\n      <p class=\"brand-name\">${business.businessName || 'Your Business Name'}</p>\n      <p class=\"brand-tagline\">${business.tagline || ''}</p>\n    </div>\n    <div class=\"doc-meta\">\n      <div class=\"doc-type\">Proposal</div>\n      <div>Ref: ${refCode}</div>\n      <div>${dateStr}</div>\n    </div>\n  </div>\n\n  <div class=\"prepared-for\">\n    <div class=\"label\">Prepared exclusively for</div>\n    <div class=\"name\">${client.contactPerson}${(client.clientName && client.clientName !== client.contactPerson) ? ' · ' + client.clientName : ''}</div>\n  </div>\n\n  <h1 class=\"title\">${data.proposal.title}</h1>\n\n  <h2>Summary</h2>\n  <p>${data.proposal.summary}</p>\n\n  <h2>Approach</h2>\n  <p>${data.proposal.approach}</p>\n\n  <h2>Timeline</h2>\n  <table>\n    <tr><th>Phase</th><th>Description</th><th>Duration</th></tr>\n    ${timelineRows}\n  </table>\n\n  <h2>Investment</h2>\n  <table>\n    <tr><th>Item</th><th>Detail</th><th class=\"amt\">Amount</th></tr>\n    ${costRows}\n    <tr class=\"total-row\"><td colspan=\"2\">Total</td><td class=\"amt\">${data.costEstimate.total}</td></tr>\n  </table>\n  <p style=\"font-style: italic; color: #6b7280;\">${data.costEstimate.paymentTerms}</p>\n\n  <h2>Scope of Work</h2>\n  <p><strong>Included:</strong></p><ul>${inScope}</ul>\n  <p><strong>Not included:</strong></p><ul>${outScope}</ul>\n  <p><strong>Assumptions:</strong></p><ul>${assumptions}</ul>\n\n  <div class=\"signature-block\">\n    <div class=\"sig-line\">Client Signature &nbsp;&nbsp;&nbsp;&nbsp; Date</div>\n    <div class=\"sig-line\">${business.businessName || 'Provider'} &nbsp;&nbsp;&nbsp;&nbsp; Date</div>\n  </div>\n\n  <div class=\"footer\">${business.businessName || ''} &nbsp;·&nbsp; ${client.freelancerEmail} &nbsp;·&nbsp; This proposal is valid for 14 days from the date above.</div>\n</body>\n</html>`;\n\nreturn [{ json: { html } }];"
+      },
+      "id": "1a1a1a1a-0009-4000-8000-000000000009",
+      "name": "Build HTML Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfshift.io/v3/convert/pdf",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: $json.html, landscape: false, use_print: true }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "1a1a1a1a-0010-4000-8000-000000000010",
+      "name": "HTML to PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        200
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "pdfshift-credential",
+          "name": "PDFShift API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const client = $('Normalize Input').first().json;\nconst date = new Date().toISOString().split('T')[0];\nconst safeName = (client.clientName || 'Client').replace(/[^a-z0-9]/gi, '_');\nconst filename = `${safeName}_Proposal_${date}.pdf`;\n\nreturn $input.all().map(item => ({\n  json: { ...item.json, filename, clientName: client.clientName, clientEmail: client.clientEmail, freelancerEmail: client.freelancerEmail },\n  binary: {\n    data: {\n      ...item.binary.data,\n      fileName: filename,\n      mimeType: 'application/pdf'\n    }\n  }\n}));"
+      },
+      "id": "1a1a1a1a-0011-4000-8000-000000000011",
+      "name": "Set PDF Filename",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "name": "={{ $json.filename }}",
+        "driveId": {
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "mode": "id",
+          "value": "YOUR_DRIVE_FOLDER_ID"
+        },
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "options": {}
+      },
+      "id": "1a1a1a1a-0012-4000-8000-000000000012",
+      "name": "Upload to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        960,
+        200
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gdrive-credential",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Proposals"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('yyyy-MM-dd') }}",
+            "Client": "={{ $json.clientName }}",
+            "Email": "={{ $json.clientEmail }}",
+            "Status": "Sent for review",
+            "DriveLink": "={{ $json.webViewLink }}",
+            "FileName": "={{ $json.filename }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "1a1a1a1a-0013-4000-8000-000000000013",
+      "name": "Log to Tracker",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gsheets-credential",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const originalPdfItem = $('Set PDF Filename').first();\nconst loggedData = $input.first().json;\n\nlet driveLink = '';\ntry {\n  const driveItem = $('Upload to Drive').first();\n  if (driveItem && driveItem.json && driveItem.json.webViewLink) {\n    driveLink = driveItem.json.webViewLink;\n  }\n} catch (e) {\n  driveLink = '';\n}\n\nreturn [{\n  json: { ...originalPdfItem.json, ...loggedData, webViewLink: driveLink },\n  binary: originalPdfItem.binary\n}];"
+      },
+      "id": "1a1a1a1a-0016-4000-8000-000000000016",
+      "name": "Reattach PDF Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first();\nconst item = inputItem.json;\nconst business = $('Business & Rate Card (Edit Me)').first().json;\n\nconst driveLine = item.webViewLink\n  ? `Your AI-generated proposal for <strong>${item.clientName}</strong> is attached and saved to Drive: <a href=\"${item.webViewLink}\">${item.webViewLink}</a>`\n  : `Your AI-generated proposal for <strong>${item.clientName}</strong> is attached. (Drive save didn't complete this time, but the PDF is right here.)`;\n\nconst emailSubject = `Proposal ready for ${item.clientName} — review before sending`;\nconst emailBody = `${driveLine}<br><br>Give it a quick read, then forward it to ${item.clientEmail} once you're happy with it.`;\n\nreturn [{\n  json: { ...item, emailSubject, emailBody },\n  binary: inputItem.binary\n}];"
+      },
+      "id": "1a1a1a1a-0017-4000-8000-000000000017",
+      "name": "Build Review Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.freelancerEmail }}",
+        "subject": "={{ $json.emailSubject }}",
+        "message": "={{ $json.emailBody }}",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          },
+          "appendAttribution": false
+        }
+      },
+      "id": "1a1a1a1a-0014-4000-8000-000000000014",
+      "name": "Email for Review",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1680,
+        200
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-credential",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "1a1a1a1a-0015-4000-8000-000000000015",
+      "name": "Done (Check Output)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Validate Required Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Validate Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Output": {
+      "main": [
+        [
+          {
+            "node": "Build HTML Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert on Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert on Failure": {
+      "main": [
+        [
+          {
+            "node": "Failed - Check Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML Document": {
+      "main": [
+        [
+          {
+            "node": "HTML to PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML to PDF": {
+      "main": [
+        [
+          {
+            "node": "Set PDF Filename",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set PDF Filename": {
+      "main": [
+        [
+          {
+            "node": "Upload to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Drive": {
+      "main": [
+        [
+          {
+            "node": "Log to Tracker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Tracker": {
+      "main": [
+        [
+          {
+            "node": "Reattach PDF Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email for Review": {
+      "main": [
+        [
+          {
+            "node": "Done (Check Output)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build API Request": {
+      "main": [
+        [
+          {
+            "node": "Generate Proposal Content (Groq)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Proposal Content (Groq)": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reattach PDF Binary": {
+      "main": [
+        [
+          {
+            "node": "Build Review Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Proposal Request": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Business & Rate Card (Edit Me)": {
+      "main": [
+        [
+          {
+            "node": "Build API Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Review Email": {
+      "main": [
+        [
+          {
+            "node": "Email for Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Required Fields": {
+      "main": [
+        [
+          {
+            "node": "Check Required Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Required Fields": {
+      "main": [
+        [
+          {
+            "node": "Business & Rate Card (Edit Me)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert - Incomplete Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert - Incomplete Submission": {
+      "main": [
+        [
+          {
+            "node": "Skipped (Incomplete Submission)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
